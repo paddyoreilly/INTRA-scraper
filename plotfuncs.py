@@ -4,6 +4,12 @@ Created on Wed Apr 28 20:22:14 2021
 
 @author: paddy
 """
+import os
+import numpy as np
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from matplotlib import dates
+from urllib.request import urlopen, HTTPError
 
 def scraper_day(y,m,d):
             
@@ -85,13 +91,6 @@ for day in info:
     rsps_split[day] = rspsplit(info[day])
     
 #%%
-
-import os
-import numpy as np
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
-from matplotlib import dates
-
 
 def burstplot(bstfile, rspinfo):
     def start(bstfile, subbands=np.arange(488)):
