@@ -12,6 +12,24 @@ from matplotlib import dates
 from urllib.request import urlopen, HTTPError
 
 def scraper_day(y,m,d):
+    """
+    
+
+    Parameters
+    ----------
+    y : int
+        Year.
+    m : int
+        Month.
+    d : int
+        Day.
+
+    Returns
+    -------
+    dayinfo : list
+        List containing RSP info for the day from solarmonitor.org.
+
+    """
             
     page = datetime.strftime(datetime(year=int(y),month=int(m),day=int(d)),
                              'https://solarmonitor.org/data/%Y/%m/%d/meta/noaa_events_raw_%Y%m%d.txt')
@@ -49,9 +67,7 @@ def scraper_day(y,m,d):
     
     return dayinfo
 
-#%%
-
-
+#%% Returns RSP info for each day since 2017
 
 day = datetime(year=2017, month=1, day=1)
 
@@ -67,7 +83,7 @@ while day < datetime.now():
         
     day=day+timedelta(days=1)
     
-#%%
+#%% Splits the RSP info into different burst types
 
 def rspsplit(info):
     
@@ -93,6 +109,21 @@ for day in info:
 #%%
 
 def burstplot(bstfile, rspinfo):
+    """
+    Plots the spectrum along side a catalog of the radio bursts
+
+    Parameters
+    ----------
+    bstfile : .dat file
+        The I-LOFAR bst .dat file.
+    rspinfo : dict
+        Dictionary in the structure; day: burst type: [start time, end time].
+
+    Returns
+    -------
+    Plot of the spectrum along side a catalog of the radio bursts
+
+    """
     def start(bstfile, subbands=np.arange(488)):
         def sb_to_freq(sb=np.arange(488)):
             def sb_to_freq_math(x): return ((n-1)+(x/512))*(clock/2)
@@ -219,7 +250,8 @@ def burstplot(bstfile, rspinfo):
     plt.savefig('C:/Users/paddy/OneDrive/DCU/ilofar/newwork/scrape/plots/'+bstfile[:-4]+'.png')
     plt.close()
     
-#%%
+#%% Plots data from an input folder into an output folder
 
-for filename in os.listdir('C:/Users/paddy/OneDrive/DCU/ilofar/newwork/scrape/work/'):
-    burstplot('C:/Users/paddy/OneDrive/DCU/ilofar/newwork/scrape/work/'+filename, rsps_split)
+def folderplotter(inputfolder, outputfolder)
+    for filename in os.listdir(inputfolder):
+        burstplot(outputfolder+filename, rsps_split)
