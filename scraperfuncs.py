@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from matplotlib import dates
 from urllib.request import urlopen, HTTPError
-import requests
 import gc
 import tqdm
 
@@ -270,10 +269,10 @@ def renamer(before,after):
         del rsps_split[day][before]
         
 #%% Downloads .dat files from a list of I-LOFAR urls
-
 def downloadplotter(urls,rsps_split):
     structure = 'D:/Users/paddy/Desktop/plotstructure/'
     tempdir = structure+'temp/'
+    ulrq = urllib.request
     
     if os.path.exists(tempdir):
         pass
@@ -286,7 +285,7 @@ def downloadplotter(urls,rsps_split):
         if os.path.exists(saveloc + url[-27:-4] + '.png'):
             continue
         
-        r = requests.get(url, allow_redirects=True)
+        r = ulrq.urlopen(ulrq.Request(url, method='HEAD'))
         if int(r.headers['Content-Length'])%(8*488) != 0:
             print('\nValue Error')
             continue
@@ -296,7 +295,7 @@ def downloadplotter(urls,rsps_split):
         else:
             os.makedirs(saveloc)
         bstloc = tempdir + url[-27:]
-        open(bstloc, 'wb').write(r.content)
+        ulrq.urlretrieve(url,bstloc)
         
         burstplot(bstloc, rsps_split, saveloc)
         
