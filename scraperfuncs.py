@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from matplotlib import dates
 from urllib.request import urlopen, HTTPError
+import requests
+import gc
+import tqdm
 
 def scraper_day(y,m,d):
     """
@@ -255,3 +258,49 @@ def burstplot(bstfile, rspinfo):
 def folderplotter(inputfolder, outputfolder)
     for filename in os.listdir(inputfolder):
         burstplot(outputfolder+filename, rsps_split)
+
+#%% Used to rename 'VI' to 'Type III Burst'
+
+def renamer(before,after):
+    for day in rsps_split:
+        try: rsps_split[day][before]
+        except KeyError:
+            continue
+        rsps_split[day][after] = rsps_split[day][before]
+        del rsps_split[day][before]
+        
+#%% Downloads .dat files from a list of I-LOFAR urls
+
+def downloadplotter(urls,rsps_split):
+    structure = 'D:/Users/paddy/Desktop/plotstructure/'
+    tempdir = structure+'temp/'
+    
+    if os.path.exists(tempdir):
+        pass
+    else:
+        os.makedirs(tempdir)
+        
+    for url in tqdm.tqdm(urls):
+        
+        saveloc = structure + url[22:-27]
+        if os.path.exists(saveloc + url[-27:-4] + '.png'):
+            continue
+        
+        r = requests.get(url, allow_redirects=True)
+        if int(r.headers['Content-Length'])%(8*488) != 0:
+            print('\nValue Error')
+            continue
+        
+        if os.path.exists(saveloc):
+            pass
+        else:
+            os.makedirs(saveloc)
+        bstloc = tempdir + url[-27:]
+        open(bstloc, 'wb').write(r.content)
+        
+        burstplot(bstloc, rsps_split, saveloc)
+        
+        os.remove(bstloc)
+        
+        del saveloc; del url; del r; del bstloc
+        gc.collect()
