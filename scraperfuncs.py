@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 28 20:22:14 2021
+Created on Thu May 13 10:36:15 2021
 
 @author: paddy
 """
+
 import os
 import numpy as np
 from datetime import datetime, timedelta
@@ -69,48 +70,99 @@ def scraper_day(y,m,d):
     
     return dayinfo
 
-#%% Returns RSP info for each day since 2017
+#%% Returns info for each day since 2017
 
-day = datetime(year=2017, month=1, day=1)
-
-info={}
-
-while day < datetime.now():
-    y, m, d = datetime.strftime(day, '%Y'), datetime.strftime(day, '%m'), datetime.strftime(day, '%d')
+def infogetter():
+    day = datetime(year=2017, month=1, day=1)
     
-    temp = scraper_day(y,m,d)
+    info={}
     
-    if len(temp) > 0: 
-        info[day] = temp
+    while day < datetime.now():
+        y, m, d = datetime.strftime(day, '%Y'), datetime.strftime(day, '%m'), datetime.strftime(day, '%d')
         
-    day=day+timedelta(days=1)
+        temp = scraper_day(y,m,d)
+        
+        if len(temp) > 0: 
+            info[day] = temp
+            
+        day=day+timedelta(days=1)
+        
+    return info
     
 #%% Splits the RSP info into different burst types
 
 def rspsplit(info):
     
-    split = {'II':[],'III':[],'IV':[],'V':[],'VI':[],'VII':[],'CTM':[],'X':[]}
+    split = {'II':[],'III':[],'IV':[],'V':[],'VI':[],'VII':[],'CTM':[]}
     
     for i in info:
-        used = False
         for s in split:
             if s+'/' == i[1][:len(s)+1]:
                 split[s] = split[s] + [i]
-                used = True
                 break
-            
-        if used != True:
-            split['X'] = split['X'] + [i]
             
     return split
 
-rsps_split={}
-for day in info:
-    rsps_split[day] = rspsplit(info[day])
-    
-#%%
+#%% Splits the XRA into different burst types
 
-def burstplot(bstfile, rspinfo):
+def xrasplit(info):
+    
+    split = {'B':[],'C':[],'X':[],'M':[]}
+    
+    for i in info:
+        for s in split:
+            if s == i[1][0]:
+                split[s] = split[s] + [i]
+                break
+            
+    return split
+    
+#%% Makes an empty list of days since 2017
+
+def daylistmaker():
+    days=[]
+    day = datetime(year=2017, month=1, day=1)
+    while day < datetime.now():
+        days.append(day)
+        day=day+timedelta(days=1)
+        
+    return days
+
+#%% Combines the RSP info and XRA info
+
+def combiner(RSPinfo_split,XRAinfo_split):
+    infocombined={}
+    pre = {'B':[],'C':[],'X':[],'M':[],'II':[],'III':[],'IV':[],'V':[],'VI':[],'VII':[],'CTM':[]}
+    daylist=daylistmaker()
+    for day in daylist:
+        if day in RSPinfo_split:
+            infocombined[day] = pre.copy()
+            infocombined[day].update(RSPinfo_split[day])
+        if day in XRAinfo_split:
+            if day in RSPinfo_split:
+                infocombined[day].update(dict(**RSPinfo_split[day],**XRAinfo_split[day]))
+            else:
+                infocombined[day] = pre.copy()
+                infocombined[day].update(XRAinfo_split[day])
+
+#%% Renamer and deleter if the info dictionaries need editing
+
+def renamer(dictionary,before,after):
+    for day in dictionary:
+        try: dictionary[day][before]
+        except KeyError:
+            continue
+        dictionary[day][after] = dictionary[day][before]
+        del dictionary[day][before]
+
+def deleter(dictionary,item):
+    for day in dictionary:
+        if item in dictionary[day]:
+            del dictionary[day][item]
+            
+#%% Plots the Spectrogram alongside the SWPC info
+
+def burstplot(bstfile, graphinfo, saveloc):
     """
     Plots the spectrum along side a catalog of the radio bursts
 
@@ -118,7 +170,7 @@ def burstplot(bstfile, rspinfo):
     ----------
     bstfile : .dat file
         The I-LOFAR bst .dat file.
-    rspinfo : dict
+    graphinfo : dict
         Dictionary in the structure; day: burst type: [start time, end time].
 
     Returns
@@ -175,7 +227,7 @@ def burstplot(bstfile, rspinfo):
         global freqs
         freqs = sb_to_freq(sbs)
 
-    def pcolormeshplot(data, y, x, vdata=None, tfs=True, colorbar=False,cmap=None,alpha=None,figsize=None, flip=False):
+    def pcolormeshplot(data, y, x, vdata=None, tfs=True, colorbar=False,cmap=cmocean.cm.solar,alpha=None,figsize=None, flip=False):
     
         if vdata is None:
             vdata = data
@@ -212,63 +264,70 @@ def burstplot(bstfile, rspinfo):
     day = datetime(year =  int(datetime.strftime(obs_start, '%Y')),
                    month = int(datetime.strftime(obs_start, '%m')),
                    day  =  int(datetime.strftime(obs_start, '%d')))
-    coltyp = {'II':'cyan','III':'blue','IV':'red','V':'brown','VI':'green','VII':'purple','CTM':'pink','X':'black'}
+    coltyp = {'Type B':'black','Type C':'black','Type X':'black','Type M':'black',
+              'Type II':'yellow','Type III':'blue','Type IV':'red','Type V':'brown',
+              'Type VI':'green','Type VII':'purple','Type CTM':'pink'}
+    typorder = ['Type B', 'Type C',  'Type X', 'Type M',
+                'Type II','Type III','Type IV','Type V','Type VI','Type VII','Type CTM']
     
-    fig, ax = plt.subplots(figsize=(10,10), dpi=400)
+    fig, ax = plt.subplots(figsize=(10,15), dpi=200)
     
     plt.subplot2grid((5,1), (0,0))
     
-    try: rspinfo[day]
+    try: graphinfo[day]
     except KeyError:
-        plt.gca().xaxis.set_visible(False)
-        plt.gca().yaxis.set_visible(False)
-        plt.title('Bursts')
+        for typ in typorder:
+            plt.barh(typ,[0])
+
     else:
-        for typ in rspinfo[day]:
-            if len(rspinfo[day][typ]) != 0:
-                widths=[]
-                bots=[]
-                for burst in rspinfo[day][typ]:
-                    if burst[0][1]-burst[0][0] < timedelta(minutes=2):
-                        widths.append(timedelta(minutes=2))
-                    else:
-                        widths.append(burst[0][1]-burst[0][0])
-                    bots.append(burst[0][0])
+        for typ in typorder:
+            try: graphinfo[day][typ]
+            except KeyError:
+                plt.barh(typ,[0])
+            else:
+                if len(graphinfo[day][typ])==0:
+                    plt.barh(typ,[0])
                     
-                plt.barh(typ, widths, left=bots, color=coltyp[typ])
+                else:
+                    widths=[]
+                    bots=[]
+                    for burst in graphinfo[day][typ]:
+                        if burst[0][1]-burst[0][0] < timedelta(minutes=2):
+                            widths.append(timedelta(minutes=2))
+                        else:
+                            widths.append(burst[0][1]-burst[0][0])
+                        bots.append(burst[0][0])
+                            
+                    plt.barh(typ, widths, left=bots, color=coltyp[typ])
                 
-        plt.gca().xaxis.set_visible(False)
-        plt.xlim(t_arr[0], t_arr[-1])
-        plt.title('Bursts')
+    plt.ylabel('X-RAY           RADIO   ')
+    plt.gca().xaxis.set_visible(False)
+    plt.xlim(t_arr[0], t_arr[-1])
+    plt.title('SWPC Classifications')
     
     
     plt.subplot2grid((5,1), (1,0), rowspan=4)
     
     pcolormeshplot(data_F,freqs,t_arr, flip=True)
+    plt.title('I-LOFAR Spectrogram')
     plt.xlim(t_arr[0], t_arr[-1])
     
     #plt.tight_layout()
     plt.suptitle(bstfile)
-    plt.savefig('C:/Users/paddy/OneDrive/DCU/ilofar/newwork/scrape/plots/'+bstfile[:-4]+'.png')
+    plt.savefig(saveloc+bstfile[:-4]+'.png')
     plt.close()
     
 #%% Plots data from an input folder into an output folder
 
-def folderplotter(inputfolder, outputfolder)
+def folderplotter(inputfolder, outputfolder, plotinfo):
     for filename in os.listdir(inputfolder):
-        burstplot(outputfolder+filename, rsps_split)
+        burstplot(inputfolder+'/'+filename, plotinfo ,outputfolder+'/')
 
-#%% Used to rename 'VI' to 'Type III Burst'
+#%% Will plot a from a list of given I-LOFAR urls
 
-def renamer(before,after):
-    for day in rsps_split:
-        try: rsps_split[day][before]
-        except KeyError:
-            continue
-        rsps_split[day][after] = rsps_split[day][before]
-        del rsps_split[day][before]
-        
-#%% Downloads .dat files from a list of I-LOFAR urls
+import gc
+import tqdm
+
 def downloadplotter(urls,rsps_split):
     structure = 'D:/Users/paddy/Desktop/plotstructure/'
     tempdir = structure+'temp/'
@@ -289,6 +348,7 @@ def downloadplotter(urls,rsps_split):
         if int(r.headers['Content-Length'])%(8*488) != 0:
             print('\nValue Error')
             continue
+        r.read(1); r.close()
         
         if os.path.exists(saveloc):
             pass
@@ -298,8 +358,54 @@ def downloadplotter(urls,rsps_split):
         ulrq.urlretrieve(url,bstloc)
         
         burstplot(bstloc, rsps_split, saveloc)
+        plt.close()
         
         os.remove(bstloc)
         
-        del saveloc; del url; del r; del bstloc
+        y, m, d = url[-27:-23], url[-23:-21], url[-21:-19]
+        txtpage = ulrq.urlopen('https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
+        txtcontent = txtpage.read().decode('utf-8')
+        txtfile = open(saveloc+y+m+d+'.txt','w+')
+        txtfile.write(txtcontent)
+        txtpage.close() ; txtfile.close() ; del txtcontent
+                
+        del saveloc ; del url ; del bstloc
         gc.collect()
+
+#%% Below is ran to get an 'infocombined' dictionary compatable with downloadplotter() function
+
+info = infogetter()
+
+RSPinfo={}
+XRAinfo={}
+
+for day in info:
+    if 'RSP' in info[day]:
+        RSPinfo[day] = info[day]['RSP']
+    if 'XRA' in info[day]:
+        XRAinfo[day] = info[day]['XRA']
+
+RSPinfo_split={}
+for day in RSPinfo:
+    RSPinfo_split[day] = rspsplit(RSPinfo[day])
+    
+XRAinfo_split={}
+for day in XRAinfo:
+    XRAinfo_split[day] = xrasplit(XRAinfo[day])
+    
+infocombined = combiner(RSPinfo_split, XRAinfo_split)
+
+renamelist = { 'Type B'   : 'B'  ,
+               'Type C'   : 'C'  ,
+               'Type X'   : 'X'  ,
+               'Type M'   : 'M'  ,
+               'Type II'  : 'II' ,
+               'Type III' : 'III',
+               'Type IV'  : 'IV' ,
+               'Type V'   : 'V'  ,
+               'Type VI'  : 'VI' ,
+               'Type VII' : 'VII',
+               'Type CTM' : 'CTM'  }
+
+for after in renamelist:
+    renamer(infocombined,renamelist[after],after)
