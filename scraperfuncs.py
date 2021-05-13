@@ -323,7 +323,7 @@ def folderplotter(inputfolder, outputfolder, plotinfo):
     for filename in os.listdir(inputfolder):
         burstplot(inputfolder+'/'+filename, plotinfo ,outputfolder+'/')
 
-#%% Will plot a from a list of given I-LOFAR urls
+#%% Will plot a from a list of given I-LOFAR urls. Also now outputs the SWPC textfile next to the plot output
 
 import gc
 import tqdm
