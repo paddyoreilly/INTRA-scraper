@@ -325,13 +325,14 @@ def folderplotter(inputfolder, outputfolder, plotinfo):
 
 #%% Will plot a from a list of given I-LOFAR urls. Also now outputs the SWPC textfile next to the plot output
 
+import urllib3
 import gc
 import tqdm
 
 def downloadplotter(urls,rsps_split):
     structure = 'D:/Users/paddy/Desktop/plotstructure/'
     tempdir = structure+'temp/'
-    ulrq = urllib.request
+    connection_pool = urllib3.PoolManager()
     
     if os.path.exists(tempdir):
         pass
@@ -344,30 +345,42 @@ def downloadplotter(urls,rsps_split):
         if os.path.exists(saveloc + url[-27:-4] + '.png'):
             continue
         
-        r = ulrq.urlopen(ulrq.Request(url, method='HEAD'))
+        r = connection_pool.request('GET', url, preload_content=False)
         if int(r.headers['Content-Length'])%(8*488) != 0:
             print('\nValue Error')
             continue
-        r.read(1); r.close()
+        
         
         if os.path.exists(saveloc):
             pass
         else:
             os.makedirs(saveloc)
         bstloc = tempdir + url[-27:]
-        ulrq.urlretrieve(url,bstloc)
+        
+        with open(bstloc,'wb') as out:
+            out.write(r.data)
+        r.release_conn()
         
         burstplot(bstloc, rsps_split, saveloc)
-        plt.close()
+        plt.close()        
         
+        out.close()
         os.remove(bstloc)
         
         y, m, d = url[-27:-23], url[-23:-21], url[-21:-19]
-        txtpage = ulrq.urlopen('https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
-        txtcontent = txtpage.read().decode('utf-8')
-        txtfile = open(saveloc+y+m+d+'.txt','w+')
-        txtfile.write(txtcontent)
-        txtpage.close() ; txtfile.close() ; del txtcontent
+        try: connection_pool.request('GET','https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
+        except urllib3.HTTPError:
+            txtcontent = 'Error: https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt'
+        else:
+            txtpage = connection_pool.request('GET','https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
+            txtcontent = txtpage.data.decode('utf-8')
+            
+        
+        with open(saveloc+y+m+d+'SWPC.txt','w+') as txtfile:
+            txtfile.write(txtcontent)
+        txtpage.release_conn()
+            
+        del txtcontent
                 
         del saveloc ; del url ; del bstloc
         gc.collect()
