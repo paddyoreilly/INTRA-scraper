@@ -102,7 +102,7 @@ class plot:
         else:
             fig, ax = plt.subplots(figsize=figsize, dpi=400)
         
-        v1 , v2 = 15 , 97
+        v1 , v2 = 15 , 98
         
         plt.pcolormesh(x,y[:g1],data.T[:g1], shading='auto',
                        vmin=np.percentile(vdata,v1), vmax=np.percentile(vdata,v2),cmap=cmap,alpha=alpha);
@@ -240,7 +240,7 @@ class plot:
             plt.axhline(int(i*2),c='black',linewidth=17.5, alpha=0.05)
         
     def goes(tstart, tend):
-        
+      
         def smooth(x,window_len=11,window='hanning'):
             
             """smooth the data using a window with requested size.
@@ -270,7 +270,6 @@ class plot:
             numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
             scipy.signal.lfilter
         
-            TODO: the window parameter could be the window itself if an array instead of a string
             NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
             """
         
@@ -409,7 +408,7 @@ class plot:
         plt.gca().set_yscale('log')
         plt.gca().legend()
         plt.gca().grid(axis='y',alpha=0.2, linestyle='--')
-        plt.text(0.005, 0.99,goesurl, ha='left', va='top', transform=plt.gca().transAxes, fontsize=6)
+        plt.text(0.005, 0.99,goesurl, ha='left', va='top', transform=plt.gca().transAxes, fontsize=8)
 
 def burstplot(bstfile, saveloc):
     """
@@ -452,9 +451,9 @@ def burstplot(bstfile, saveloc):
     plt.subplot2grid((5,1), (2,0), rowspan=3)
     plot.spectrogram(data_F,freqs,t_arr, date_format, bstfile)
     plot.gridmaker(obs_start, t_arr)
-    plt.text(t_arr[0],210,' Created '+datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M'),ha='left',va='bottom', fontsize=6)
     
 
+    plt.suptitle('Created: '+datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')+' ',x=1,y=0,ha='right',va='bottom', fontsize=8)
     plt.tight_layout()
     plt.savefig(saveloc+bstfile[:-4]+'.png')
     plt.close()
@@ -479,29 +478,9 @@ def massplotter(urls):
     structure = 'D:/Users/paddy/Desktop/plotstructure/'
     tempdir = structure+'temp/'
     connection_pool = urllib3.PoolManager()
-    
-    
-    y, m, d = url[-27:-23], url[-23:-21], url[-21:-19]
-    
-    if os.path.exists(saveloc+y+m+d+'SWPC.txt'):
-        pass
-    else:
-        try: connection_pool.request('GET','https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
-        except urllib3.HTTPError:
-            txtcontent = 'Error: https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt'
-            print('Error: https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
-        else:
-            txtpage = connection_pool.request('GET','https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
-            txtcontent = txtpage.data.decode('utf-8')
+     
         
-    with open(saveloc+y+m+d+'SWPC.txt','w+') as txtfile:
-        txtfile.write(txtcontent)
-        
-        
-        
-    txtpage.release_conn()
-        
-    del txtcontent
+
     
     
     if os.path.exists(tempdir):
@@ -513,6 +492,7 @@ def massplotter(urls):
         
         saveloc = structure + url[22:-27]
         if os.path.exists(saveloc + url[-27:-4] + '.png'):
+            urls.remove(url)
             continue
         
         r = connection_pool.request('GET', url)
@@ -520,6 +500,7 @@ def massplotter(urls):
         filesize = r.headers['Content-Length']
         if int(filesize)%(8*488) != 0:
             print('\nFile Size Error: ' + filesize + ' bytes\n' + url[-27:-4] + '.png')
+            urls.remove(url)
             continue
         
         
@@ -539,8 +520,27 @@ def massplotter(urls):
         out.close()
         os.remove(bstloc)
         
-
-                
+        y, m, d = url[-27:-23], url[-23:-21], url[-21:-19]
+    
+        if os.path.exists(saveloc+y+m+d+'SWPC.txt'):
+            pass
+        else:
+            try: connection_pool.request('GET','https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
+            except urllib3.HTTPError:
+                txtcontent = 'Error: https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt'
+                print('Error: https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
+            else:
+                txtpage = connection_pool.request('GET','https://solarmonitor.org/data/'+y+'/'+m+'/'+d+'/meta/noaa_events_raw_'+y+m+d+'.txt')
+                txtcontent = txtpage.data.decode('utf-8')
+            
+            with open(saveloc+y+m+d+'SWPC.txt','w+') as txtfile:
+                txtfile.write(txtcontent)
+                    
+            txtpage.release_conn()
+        
+            del txtcontent
+            urls.remove(url)
+        
         del saveloc ; del url ; del bstloc
         gc.collect()
         
