@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon May 31 11:28:55 2021
+Created on Fri Jun  4 16:13:27 2021
 
 @author: paddy
 """
+
 from os import path
 
 import numpy as np
@@ -18,6 +19,9 @@ from matplotlib.ticker import MultipleLocator
 import json
 from astropy.io import fits
 
+import sunpy.timeseries
+from sunpy.net import Fido
+from sunpy.net import attrs as a
      
 
 def plot(bstfile, saveloc):
@@ -315,6 +319,8 @@ def plot(bstfile, saveloc):
                 if daycheck > datetime.now()-timedelta(days=2):
                     url = 'https://services.swpc.noaa.gov/json/goes/primary/xrays-3-day.json'
                 return get_goesnew(url=url)
+            if daycheck > datetime(year=2020, month=1, day=1):
+                return get_goessunpy(day)
             else:
                 return get_goesarchive(day)
 
@@ -374,8 +380,19 @@ def plot(bstfile, saveloc):
             for s in goestimenums:
                 goestime.append(daystart + timedelta(seconds = s))
                 
-            return goeslo, goeshi, Time(goestime), goesurl
-        
+            return goeslo, goeshi, Time(goestime), goesurl        
+
+        def get_goessunpy(day):
+    
+            obj = sunpy.timeseries.TimeSeries(Fido.fetch(Fido.search(a.Time(tstart, tend), a.Instrument("XRS"), a.goes.SatelliteNumber(16))))
+            
+            goestime = obj.index
+            
+            goesarray = obj.to_array()
+            goeshi = goesarray[:,0]
+            goeslo = goesarray[:,1]
+            
+            return goeslo, goeshi, Time(goestime), 'Sunpy data from GOES 16'
         
         classes = ['A','B','C','M','X']
         
@@ -384,11 +401,7 @@ def plot(bstfile, saveloc):
         
         tstart = dates.num2date(tstart)
         tend = dates.num2date(tend)
-        
-        if tend - tstart >= timedelta(hours=5):
-            smth = True
-        else: smth = False
-        
+                
         lo, hi, t, goesurl = get_goes(tstart)
         
         tstart = Time(tstart)
@@ -396,9 +409,8 @@ def plot(bstfile, saveloc):
         
         if len(t) > 0:
         
-            if smth == True:
-                hi = smooth(hi,20,'blackman')[10:-9]
-                lo = smooth(lo,20,'blackman')[10:-9]
+            hi = smooth(hi,20,'blackman')[10:-9]
+            lo = smooth(lo,20,'blackman')[10:-9]
                 
             plt.gca().plot_date(t.plot_date,lo,'-',label='  1-8 A')
             plt.gca().plot_date(t.plot_date,hi,'-',label='0.5-4 A')
